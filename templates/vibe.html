@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wandr: Your Vibe</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --sand: #f5f0e8; --ink: #1a1712; --terra: #c4622d; --muted: #8a8070; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--sand); color: var(--ink); min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events: none; z-index: 0; }
+    .page { position: relative; z-index: 1; max-width: 680px; margin: 0 auto; padding: 0 2rem 4rem; }
+    header { padding: 2rem 0; display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-family: 'Playfair Display', serif; font-size: 1.5rem; letter-spacing: 0.05em; text-decoration: none; color: var(--ink); }
+    .logo span { color: var(--terra); }
+    .step-indicator { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+    .intro { margin: 2rem 0 2.5rem; animation: fadeUp 0.5s ease forwards; }
+    .destination-tag { display: inline-block; padding: 0.3rem 0.9rem; border: 1px solid var(--terra); border-radius: 2px; color: var(--terra); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 1rem; }
+    h2 { font-family: 'Playfair Display', serif; font-size: 2.2rem; margin-bottom: 0.5rem; }
+    .prompt { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+    .section { margin-bottom: 2.5rem; animation: fadeUp 0.5s ease forwards; }
+    .field-label { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.85rem; display: block; }
+    .chips { display: flex; gap: 0.65rem; flex-wrap: wrap; }
+    .chip input { display: none; }
+    .chip label { display: block; padding: 0.6rem 1.1rem; border: 1.5px solid #d4cec5; border-radius: 100px; cursor: pointer; font-size: 0.875rem; color: var(--muted); transition: all 0.15s; }
+    .chip input[type="radio"]:checked + label { border-color: var(--ink); color: var(--ink); background: rgba(26,23,18,0.06); font-weight: 500; }
+    .chip input[type="checkbox"]:checked + label { border-color: var(--terra); color: var(--terra); background: rgba(196,98,45,0.07); font-weight: 500; }
+    .chip label:hover { border-color: var(--terra); color: var(--terra); }
+    .word-input-wrap { border: 1.5px solid var(--ink); border-radius: 4px; display: flex; overflow: hidden; box-shadow: 3px 3px 0 var(--ink); background: white; }
+    .word-input-wrap input { flex: 1; padding: 1rem 1.2rem; border: none; outline: none; font-family: 'Playfair Display', serif; font-size: 1.1rem; font-style: italic; background: transparent; color: var(--ink); }
+    .word-input-wrap input::placeholder { color: #c4bdb5; }
+    .helper-text { font-size: 0.78rem; color: var(--muted); margin-top: 0.6rem; }
+    .submit-btn { width: 100%; padding: 1.1rem; background: var(--terra); color: white; border: 1.5px solid var(--terra); border-radius: 4px; font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: 3px 3px 0 rgba(196,98,45,0.3); margin-top: 1rem; }
+    .submit-btn:hover { background: var(--ink); border-color: var(--ink); }
+    .loading { display: none; text-align: center; padding: 3rem 1rem; }
+    .loading.show { display: block; }
+    .loading-text { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-style: italic; margin-bottom: 0.75rem; }
+    .loading-sub { color: var(--muted); font-size: 0.85rem; }
+    .spinner { width: 36px; height: 36px; border: 2px solid #e0d9d0; border-top-color: var(--terra); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 1.5rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <a href="/" class="logo">Wand<span>r</span></a>
+    <div class="step-indicator">Step 3 of 4</div>
+  </header>
+
+  <div id="form-view">
+    <div class="intro">
+      <div class="destination-tag">{{ city }}</div>
+      <h2>What's the vibe?</h2>
+      <p class="prompt">Quick answers so your itinerary actually feels like you.</p>
+    </div>
+
+    <form action="/generate" method="post" id="vibe-form">
+      <input type="hidden" name="city" value="{{ city }}">
+      <input type="hidden" name="duration" value="{{ duration }}">
+      <input type="hidden" name="budget" value="{{ budget }}">
+      <input type="hidden" name="travel_type" value="{{ travel_type }}">
+      <input type="hidden" name="home_country" value="{{ home_country }}">
+      <input type="hidden" name="start_date" value="{{ start_date }}">
+      <input type="hidden" name="end_date" value="{{ end_date }}">
+
+      <div class="section">
+        <label class="field-label">Trip pace</label>
+        <div class="chips">
+          {% for pace in ["Slow & immersive", "Balanced mix", "Pack it in", "Go with the flow"] %}
+          <div class="chip">
+            <input type="radio" name="pace" id="pace_{{ loop.index }}" value="{{ pace }}" required>
+            <label for="pace_{{ loop.index }}">{{ pace }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="section">
+        <label class="field-label">Top priorities (pick all that apply)</label>
+        <div class="chips">
+          {% for interest in ["Food & coffee", "Art & culture", "Fashion & shopping", "Wellness & movement", "Nightlife", "Nature & outdoors", "Hidden gems", "Architecture", "People watching"] %}
+          <div class="chip">
+            <input type="checkbox" name="priorities" id="int_{{ loop.index }}" value="{{ interest }}">
+            <label for="int_{{ loop.index }}">{{ interest }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="section">
+        <label class="field-label">How well-known do you want the spots?</label>
+        <div class="chips">
+          <div class="chip">
+            <input type="radio" name="niche_level" id="n1" value="well-known" required>
+            <label for="n1">🗼 Iconic classics</label>
+          </div>
+          <div class="chip">
+            <input type="radio" name="niche_level" id="n2" value="mix">
+            <label for="n2">⚖️ Mix it up</label>
+          </div>
+          <div class="chip">
+            <input type="radio" name="niche_level" id="n3" value="niche">
+            <label for="n3">🌿 Hidden gems only</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <label class="field-label">Where you'd rather sleep</label>
+        <div class="chips">
+          {% for acc in ["Boutique hotel", "Hostel / social", "Airbnb local feel", "Luxury hotel", "Whatever's cheapest"] %}
+          <div class="chip">
+            <input type="radio" name="accommodation" id="acc_{{ loop.index }}" value="{{ acc }}" required>
+            <label for="acc_{{ loop.index }}">{{ acc }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="section">
+        <label class="field-label">Describe this trip in one word</label>
+        <div class="word-input-wrap">
+          <input type="text" name="one_word" placeholder="adventure, healing, romantic, unhinged..." maxlength="30" required autocomplete="off">
+        </div>
+        <p class="helper-text">Make it honest. This shapes everything.</p>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submit-btn">Build my itinerary</button>
+    </form>
+  </div>
+
+  <div class="loading" id="loading-view">
+    <div class="spinner"></div>
+    <p class="loading-text">Building your trip...</p>
+    <p class="loading-sub">Putting your trip together now.</p>
+  </div>
+</div>
+
+<script>
+  document.getElementById('vibe-form').addEventListener('submit', function(e) {
+    const checked = document.querySelectorAll('input[name="priorities"]:checked');
+    if (checked.length === 0) { e.preventDefault(); alert('Pick at least one priority!'); return; }
+    document.getElementById('form-view').style.display = 'none';
+    document.getElementById('loading-view').classList.add('show');
+  });
+</script>
+</body>
+</html>

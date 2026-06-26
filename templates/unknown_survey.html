@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wandr: Find Your Destination</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --sand: #f5f0e8; --ink: #1a1712; --terra: #c4622d; --muted: #8a8070; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--sand); color: var(--ink); min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events: none; z-index: 0; }
+    .page { position: relative; z-index: 1; max-width: 660px; margin: 0 auto; padding: 0 2rem 4rem; }
+    header { padding: 2rem 0; display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-family: 'Playfair Display', serif; font-size: 1.5rem; letter-spacing: 0.05em; text-decoration: none; color: var(--ink); }
+    .logo span { color: var(--terra); }
+    .step-indicator { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+    .intro { margin: 2rem 0 2.5rem; animation: fadeUp 0.5s ease forwards; }
+    h2 { font-family: 'Playfair Display', serif; font-size: 2.2rem; margin-bottom: 0.5rem; }
+    h2 em { font-style: italic; color: var(--terra); }
+    .prompt { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+    .section { margin-bottom: 2.2rem; }
+    .field-label { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.85rem; display: block; }
+    .chips { display: flex; gap: 0.65rem; flex-wrap: wrap; }
+    .chip input { display: none; }
+    .chip label { display: block; padding: 0.6rem 1.1rem; border: 1.5px solid #d4cec5; border-radius: 100px; cursor: pointer; font-size: 0.875rem; color: var(--muted); transition: all 0.15s; }
+    .chip input:checked + label { border-color: var(--ink); color: var(--ink); background: rgba(26,23,18,0.06); font-weight: 500; }
+    .chip label:hover { border-color: var(--terra); color: var(--terra); }
+    .text-input { width: 100%; padding: 0.9rem 1.1rem; border: 1.5px solid #d4cec5; border-radius: 4px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; color: var(--ink); background: white; outline: none; transition: border 0.15s; }
+    .text-input:focus { border-color: var(--terra); }
+    .text-input::placeholder { color: #c4bdb5; }
+    .submit-btn { width: 100%; padding: 1.1rem; background: var(--terra); color: white; border: 1.5px solid var(--terra); border-radius: 4px; font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: 3px 3px 0 rgba(196,98,45,0.3); margin-top: 0.5rem; }
+    .submit-btn:hover { background: var(--ink); border-color: var(--ink); }
+    .loading { display: none; text-align: center; padding: 4rem 1rem; }
+    .loading.show { display: block; }
+    .loading-text { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-style: italic; margin-bottom: 0.75rem; }
+    .loading-sub { color: var(--muted); font-size: 0.85rem; }
+    .spinner { width: 36px; height: 36px; border: 2px solid #e0d9d0; border-top-color: var(--terra); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 1.5rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <a href="/" class="logo">Wand<span>r</span></a>
+    <div class="step-indicator">Step 2 of 5</div>
+  </header>
+
+  <div id="form-view">
+    <div class="intro">
+      <h2>Let's find your destination.</h2>
+      <p class="prompt">A few questions and we'll find somewhere you'll want to go.</p>
+    </div>
+
+    <form action="/destinations" method="post" id="discovery-form">
+      <input type="hidden" name="travel_type" value="{{ travel_type or 'international' }}">
+      <input type="hidden" name="home_country" value="{{ home_country or '' }}">
+
+      <div class="section">
+        <label class="field-label">What kind of weather do you want?</label>
+        <div class="chips">
+          {% for w in ["Warm & sunny ☀️", "Cool & crisp 🍂", "Hot & humid 🌴", "Cold & snowy ❄️", "Mild & cloudy 🌥️", "I don't care"] %}
+          <div class="chip">
+            <input type="radio" name="weather" id="w{{ loop.index }}" value="{{ w }}" required>
+            <label for="w{{ loop.index }}">{{ w }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="section">
+        <label class="field-label">How long is your trip?</label>
+        <div class="chips">
+          {% for opt in [("Weekend (2 days)", "2"), ("3 days", "3"), ("4–5 days", "5"), ("1 week", "7"), ("2 weeks", "14")] %}
+          <div class="chip">
+            <input type="radio" name="duration" id="dur{{ opt[1] }}" value="{{ opt[0] }}" required>
+            <label for="dur{{ opt[1] }}">{{ opt[0] }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="section">
+        <label class="field-label">Budget range</label>
+        <div class="chips">
+          {% for opt in [("Budget 💸", "budget"), ("Mid-range 🌿", "mid-range"), ("Splurge ✨", "high")] %}
+          <div class="chip">
+            <input type="radio" name="budget" id="bud{{ opt[1] }}" value="{{ opt[1] }}" required>
+            <label for="bud{{ opt[1] }}">{{ opt[0] }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="section">
+        <label class="field-label">How well-known do you want the destination?</label>
+        <div class="chips">
+          <div class="chip">
+            <input type="radio" name="popularity" id="pop1" value="well-known" required>
+            <label for="pop1">🗼 Famous & iconic</label>
+          </div>
+          <div class="chip">
+            <input type="radio" name="popularity" id="pop2" value="mix">
+            <label for="pop2">⚖️ Mix of both</label>
+          </div>
+          <div class="chip">
+            <input type="radio" name="popularity" id="pop3" value="niche">
+            <label for="pop3">🌿 Hidden gem / niche</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <label class="field-label">Describe your dream trip in a few words</label>
+        <input type="text" name="vibe_hint" class="text-input" placeholder="e.g. relaxing beach, cultural deep dive, food obsession, solo adventure..." required>
+      </div>
+
+      <button type="submit" class="submit-btn">Show me where to go</button>
+    </form>
+  </div>
+
+  <div class="loading" id="loading-view">
+    <div class="spinner"></div>
+    <p class="loading-text">Searching...</p>
+    <p class="loading-sub">Finding places that fit.</p>
+  </div>
+</div>
+
+<script>
+  document.getElementById('discovery-form').addEventListener('submit', function() {
+    document.getElementById('form-view').style.display = 'none';
+    document.getElementById('loading-view').classList.add('show');
+  });
+</script>
+</body>
+</html>

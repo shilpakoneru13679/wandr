@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wandr: Spin the Globe</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --sand: #f5f0e8; --ink: #1a1712; --terra: #c4622d; --muted: #8a8070; --ocean: #2a4a6b; --land: #7a8c6e; --land-light: #a3b899; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--sand); color: var(--ink); min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events: none; z-index: 0; }
+    .page { position: relative; z-index: 1; min-height: 100vh; display: flex; flex-direction: column; }
+    header { padding: 2rem 3rem; display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-family: 'Playfair Display', serif; font-size: 1.5rem; letter-spacing: 0.05em; text-decoration: none; color: var(--ink); }
+    .logo span { color: var(--terra); }
+    .step-indicator { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+
+    main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem 2rem 3rem; text-align: center; }
+
+    .intro { margin-bottom: 2rem; animation: fadeUp 0.5s ease forwards; }
+    .eyebrow { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--terra); margin-bottom: 0.75rem; }
+    h2 { font-family: 'Playfair Display', serif; font-size: clamp(1.8rem, 4vw, 2.8rem); margin-bottom: 0.5rem; }
+    h2 em { font-style: italic; color: var(--terra); }
+    .subtitle { color: var(--muted); font-size: 0.875rem; line-height: 1.7; }
+
+    /* Globe container */
+    .globe-wrap { position: relative; margin: 1.5rem 0; animation: fadeUp 0.5s ease 0.15s both; }
+
+    #globe-canvas { cursor: pointer; border-radius: 50%; display: block; }
+
+    /* Pin that appears on stop */
+    .pin {
+      position: absolute; pointer-events: none;
+      transform: translate(-50%, -100%);
+      display: none; flex-direction: column; align-items: center;
+      animation: pinDrop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    .pin.show { display: flex; }
+    .pin-dot { width: 14px; height: 14px; background: var(--terra); border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 8px rgba(196,98,45,0.5); }
+    .pin-line { width: 2px; height: 20px; background: var(--terra); }
+    .pin-label { background: var(--ink); color: var(--sand); padding: 0.3rem 0.7rem; border-radius: 3px; font-size: 0.75rem; font-weight: 500; white-space: nowrap; margin-bottom: 4px; box-shadow: 2px 2px 0 rgba(26,23,18,0.2); }
+
+    /* CTA area */
+    .cta-area { animation: fadeUp 0.5s ease 0.3s both; }
+
+    .spin-btn {
+      padding: 1rem 2.5rem; background: var(--ink); color: var(--sand);
+      border: 1.5px solid var(--ink); border-radius: 4px;
+      font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 500;
+      cursor: pointer; transition: all 0.2s; letter-spacing: 0.03em;
+      box-shadow: 3px 3px 0 rgba(26,23,18,0.2);
+      margin-bottom: 0.75rem; display: block; width: 100%; max-width: 300px; margin: 0 auto 0.75rem;
+    }
+    .spin-btn:hover { background: var(--terra); border-color: var(--terra); }
+    .spin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .stop-btn {
+      padding: 1rem 2.5rem; background: var(--terra); color: white;
+      border: 1.5px solid var(--terra); border-radius: 4px;
+      font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 500;
+      cursor: pointer; transition: all 0.2s;
+      box-shadow: 3px 3px 0 rgba(196,98,45,0.3);
+      display: none; width: 100%; max-width: 300px; margin: 0 auto 0.75rem;
+    }
+    .stop-btn.show { display: block; }
+    .stop-btn:hover { background: var(--ink); border-color: var(--ink); }
+
+    .region-label { font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem; min-height: 1.2rem; }
+    .region-label.landed { color: var(--terra); font-weight: 500; }
+
+    /* Loading state */
+    .loading { display: none; text-align: center; padding: 1rem; }
+    .loading.show { display: block; }
+    .loading-text { font-family: 'Playfair Display', serif; font-size: 1.2rem; font-style: italic; margin-bottom: 0.5rem; }
+    .loading-sub { color: var(--muted); font-size: 0.82rem; }
+    .spinner { width: 30px; height: 30px; border: 2px solid #e0d9d0; border-top-color: var(--terra); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 1rem auto; }
+
+    /* Confirm section (after stop) */
+    .confirm-area { display: none; margin-top: 1rem; }
+    .confirm-area.show { display: block; animation: fadeUp 0.4s ease forwards; }
+    .confirm-text { font-size: 0.875rem; color: var(--muted); margin-bottom: 1rem; }
+    .confirm-text strong { color: var(--ink); }
+    .confirm-btns { display: flex; gap: 0.75rem; justify-content: center; }
+    .btn-confirm { padding: 0.75rem 1.5rem; background: var(--terra); color: white; border: 1.5px solid var(--terra); border-radius: 4px; font-family: 'DM Sans', sans-serif; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+    .btn-confirm:hover { background: var(--ink); border-color: var(--ink); }
+    .btn-respin { padding: 0.75rem 1.5rem; background: transparent; color: var(--muted); border: 1.5px solid #d4cec5; border-radius: 4px; font-family: 'DM Sans', sans-serif; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; }
+    .btn-respin:hover { border-color: var(--ink); color: var(--ink); }
+
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pinDrop { from { opacity: 0; transform: translate(-50%, -80%); } to { opacity: 1; transform: translate(-50%, -100%); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <a href="/" class="logo">Wand<span>r</span></a>
+    <div class="step-indicator">Step 2 of 5</div>
+  </header>
+
+  <main>
+    <div class="intro">
+      <p class="eyebrow">Leaving it to chance</p>
+      <h2>Spin the globe</h2>
+      <p class="subtitle">Hit spin, stop it wherever. We'll find real destinations near where it lands.</p>
+    </div>
+
+    <div class="globe-wrap">
+      <canvas id="globe-canvas" width="320" height="320"></canvas>
+      <div class="pin" id="pin">
+        <div class="pin-label" id="pin-label"></div>
+        <div class="pin-dot"></div>
+        <div class="pin-line"></div>
+      </div>
+    </div>
+
+    <div class="cta-area">
+      <button class="spin-btn" id="spin-btn" onclick="startSpin()">Spin the globe</button>
+      <button class="stop-btn" id="stop-btn" onclick="stopSpin()">Stop it here</button>
+      <p class="region-label" id="region-label">Click spin to start</p>
+
+      <div class="confirm-area" id="confirm-area">
+        <p class="confirm-text">You landed on <strong id="confirm-region"></strong>. Want to explore this region?</p>
+        <div class="confirm-btns">
+          <button class="btn-confirm" onclick="findDestinations()">Find destinations here</button>
+          <button class="btn-respin" onclick="respin()">Spin again</button>
+        </div>
+      </div>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p class="loading-text">Finding destinations...</p>
+        <p class="loading-sub" id="loading-sub">Looking for places near that region.</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Hidden form to POST region to backend -->
+  <form id="region-form" action="/globe/pick" method="post" style="display:none">
+    <input type="hidden" name="region" id="region-input">
+    <input type="hidden" name="lat" id="lat-input">
+    <input type="hidden" name="lng" id="lng-input">
+    <input type="hidden" name="travel_type" value="{{ travel_type }}">
+    <input type="hidden" name="home_country" value="{{ home_country }}">
+  </form>
+</div>
+
+<script>
+// ── Globe regions mapped by longitude zones ──────────────────────────────────
+const REGIONS = [
+  { name: "Western Europe", lat: 48, lng: 10, color: "#8fa882" },
+  { name: "Eastern Europe", lat: 52, lng: 28, color: "#8fa882" },
+  { name: "North Africa", lat: 28, lng: 20, color: "#c4a35a" },
+  { name: "West Africa", lat: 10, lng: 5, color: "#b8956a" },
+  { name: "East Africa", lat: 0, lng: 38, color: "#b8956a" },
+  { name: "Southern Africa", lat: -25, lng: 28, color: "#b8956a" },
+  { name: "Middle East", lat: 25, lng: 48, color: "#c9a96e" },
+  { name: "Central Asia", lat: 42, lng: 65, color: "#a89070" },
+  { name: "South Asia", lat: 22, lng: 80, color: "#8fa882" },
+  { name: "Southeast Asia", lat: 12, lng: 105, color: "#7ab87a" },
+  { name: "East Asia", lat: 35, lng: 118, color: "#8fa882" },
+  { name: "Japan & Korea", lat: 36, lng: 138, color: "#8fa882" },
+  { name: "Oceania", lat: -25, lng: 135, color: "#7ab87a" },
+  { name: "Eastern USA", lat: 38, lng: -80, color: "#8fa882" },
+  { name: "Western USA", lat: 38, lng: -115, color: "#8fa882" },
+  { name: "Canada", lat: 55, lng: -95, color: "#7a9a70" },
+  { name: "Mexico & Central America", lat: 18, lng: -95, color: "#8fa882" },
+  { name: "Caribbean", lat: 18, lng: -70, color: "#7ab87a" },
+  { name: "Northern South America", lat: 5, lng: -60, color: "#7ab87a" },
+  { name: "Southern South America", lat: -35, lng: -65, color: "#8fa882" },
+  { name: "Scandinavia", lat: 62, lng: 15, color: "#7a9a70" },
+  { name: "Iberian Peninsula", lat: 40, lng: -4, color: "#8fa882" },
+  { name: "British Isles", lat: 54, lng: -3, color: "#7a9a70" },
+];
+
+const canvas = document.getElementById('globe-canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height, CX = W/2, CY = H/2, R = 148;
+
+let rotation = 0;
+let spinSpeed = 0;
+let spinning = false;
+let animFrame = null;
+let stoppedLng = null;
+let stoppedRegion = null;
+
+// ── Draw globe ────────────────────────────────────────────────────────────────
+function projectToCanvas(lat, lng, rotation) {
+  const adjustedLng = lng + rotation;
+  const lngRad = adjustedLng * Math.PI / 180;
+  const latRad = lat * Math.PI / 180;
+  const cosLat = Math.cos(latRad);
+  const x = CX + R * cosLat * Math.sin(lngRad);
+  const y = CY - R * Math.sin(latRad);
+  const visible = Math.cos(lngRad) * cosLat > -0.1;
+  return { x, y, visible };
+}
+
+function drawGlobe() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Shadow
+  const shadow = ctx.createRadialGradient(CX + 20, CY + 20, R * 0.1, CX + 20, CY + 20, R * 1.3);
+  shadow.addColorStop(0, 'rgba(26,23,18,0.15)');
+  shadow.addColorStop(1, 'rgba(26,23,18,0)');
+  ctx.fillStyle = shadow;
+  ctx.beginPath(); ctx.arc(CX + 20, CY + 20, R * 1.3, 0, Math.PI * 2); ctx.fill();
+
+  // Ocean
+  const oceanGrad = ctx.createRadialGradient(CX - 30, CY - 30, R * 0.1, CX, CY, R);
+  oceanGrad.addColorStop(0, '#3a6080');
+  oceanGrad.addColorStop(1, '#1e3a52');
+  ctx.beginPath(); ctx.arc(CX, CY, R, 0, Math.PI * 2);
+  ctx.fillStyle = oceanGrad; ctx.fill();
+
+  // Latitude lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 0.8;
+  for (let lat = -60; lat <= 60; lat += 30) {
+    ctx.beginPath();
+    let started = false;
+    for (let lng = -180; lng <= 180; lng += 3) {
+      const p = projectToCanvas(lat, lng, rotation);
+      if (p.visible) { if (!started) { ctx.moveTo(p.x, p.y); started = true; } else ctx.lineTo(p.x, p.y); }
+      else started = false;
+    }
+    ctx.stroke();
+  }
+
+  // Longitude lines
+  for (let lng = -180; lng < 180; lng += 30) {
+    ctx.beginPath();
+    let started = false;
+    for (let lat = -90; lat <= 90; lat += 3) {
+      const p = projectToCanvas(lat, lng, rotation);
+      if (p.visible) { if (!started) { ctx.moveTo(p.x, p.y); started = true; } else ctx.lineTo(p.x, p.y); }
+      else started = false;
+    }
+    ctx.stroke();
+  }
+
+  // Regions as blobs
+  REGIONS.forEach(region => {
+    const p = projectToCanvas(region.lat, region.lng, rotation);
+    if (!p.visible) return;
+    const depth = Math.cos((region.lng + rotation) * Math.PI / 180) * Math.cos(region.lat * Math.PI / 180);
+    const size = Math.max(8, 22 * depth);
+    ctx.beginPath(); ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+    ctx.fillStyle = region.color + 'cc'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1; ctx.stroke();
+  });
+
+  // Globe shine
+  const shine = ctx.createRadialGradient(CX - 50, CY - 50, 10, CX, CY, R);
+  shine.addColorStop(0, 'rgba(255,255,255,0.18)');
+  shine.addColorStop(0.4, 'rgba(255,255,255,0.04)');
+  shine.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.beginPath(); ctx.arc(CX, CY, R, 0, Math.PI * 2);
+  ctx.fillStyle = shine; ctx.fill();
+
+  // Border
+  ctx.beginPath(); ctx.arc(CX, CY, R, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // Equator highlight
+  ctx.beginPath();
+  let eqStarted = false;
+  for (let lng = -180; lng <= 180; lng += 2) {
+    const p = projectToCanvas(0, lng, rotation);
+    if (p.visible) { if (!eqStarted) { ctx.moveTo(p.x, p.y); eqStarted = true; } else ctx.lineTo(p.x, p.y); }
+    else eqStarted = false;
+  }
+  ctx.strokeStyle = 'rgba(212, 168, 67, 0.4)'; ctx.lineWidth = 1.5; ctx.stroke();
+}
+
+// ── Nearest visible region to center ────────────────────────────────────────
+function getNearestRegion() {
+  let best = null, bestDist = Infinity;
+  REGIONS.forEach(r => {
+    const adjLng = ((r.lng + rotation) % 360 + 360) % 360;
+    const normLng = adjLng > 180 ? adjLng - 360 : adjLng;
+    const visible = Math.cos(normLng * Math.PI / 180) * Math.cos(r.lat * Math.PI / 180) > 0.15;
+    if (!visible) return;
+    const p = projectToCanvas(r.lat, r.lng, rotation);
+    const dist = Math.hypot(p.x - CX, p.y - CY);
+    if (dist < bestDist) { bestDist = dist; best = r; }
+  });
+  return best;
+}
+
+// ── Animation loop ────────────────────────────────────────────────────────────
+function animate() {
+  if (spinning) {
+    rotation += spinSpeed;
+    spinSpeed *= 0.9995; // very gentle decel when spinning
+  }
+  drawGlobe();
+
+  // Update region label while spinning
+  if (spinning) {
+    const r = getNearestRegion();
+    if (r) document.getElementById('region-label').textContent = r.name;
+  }
+
+  animFrame = requestAnimationFrame(animate);
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+function startSpin() {
+  spinning = true;
+  spinSpeed = 2.5 + Math.random() * 1.5;
+  document.getElementById('spin-btn').style.display = 'none';
+  document.getElementById('stop-btn').classList.add('show');
+  document.getElementById('confirm-area').classList.remove('show');
+  document.getElementById('pin').classList.remove('show');
+  document.getElementById('region-label').className = 'region-label';
+  if (!animFrame) animate();
+}
+
+function stopSpin() {
+  spinning = false;
+  spinSpeed = 0;
+  const region = getNearestRegion();
+  stoppedRegion = region;
+
+  document.getElementById('stop-btn').classList.remove('show');
+  document.getElementById('region-label').className = 'region-label landed';
+
+  if (region) {
+    document.getElementById('region-label').textContent = `Landed on ${region.name}`;
+    document.getElementById('confirm-region').textContent = region.name;
+
+    // Place pin
+    const p = projectToCanvas(region.lat, region.lng, rotation);
+    const pin = document.getElementById('pin');
+    pin.style.left = p.x + 'px';
+    pin.style.top = p.y + 'px';
+    document.getElementById('pin-label').textContent = region.name;
+    pin.classList.add('show');
+  }
+
+  document.getElementById('confirm-area').classList.add('show');
+}
+
+function respin() {
+  document.getElementById('confirm-area').classList.remove('show');
+  document.getElementById('pin').classList.remove('show');
+  document.getElementById('spin-btn').style.display = 'block';
+  document.getElementById('region-label').className = 'region-label';
+  document.getElementById('region-label').textContent = 'Click spin to start';
+  stoppedRegion = null;
+}
+
+function findDestinations() {
+  if (!stoppedRegion) return;
+  document.getElementById('confirm-area').classList.remove('show');
+  document.getElementById('loading').classList.add('show');
+  document.getElementById('loading-sub').textContent = `Searching near ${stoppedRegion.name}...`;
+
+  document.getElementById('region-input').value = stoppedRegion.name;
+  document.getElementById('lat-input').value = stoppedRegion.lat;
+  document.getElementById('lng-input').value = stoppedRegion.lng;
+  document.getElementById('region-form').submit();
+}
+
+// Start drawing immediately
+drawGlobe();
+</script>
+</body>
+</html>

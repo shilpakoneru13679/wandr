@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wandr: Throw a Dart</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <!-- Leaflet for real country maps -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --sand: #f5f0e8; --ink: #1a1712; --terra: #c4622d; --muted: #8a8070; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--sand); color: var(--ink); min-height: 100vh; display: flex; flex-direction: column; }
+    body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events: none; z-index: 0; }
+    .page { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; }
+    header { padding: 1.5rem 3rem; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+    .logo { font-family: 'Playfair Display', serif; font-size: 1.5rem; letter-spacing: 0.05em; text-decoration: none; color: var(--ink); }
+    .logo span { color: var(--terra); }
+    .step-indicator { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+
+    .intro { text-align: center; padding: 1rem 2rem 1.25rem; flex-shrink: 0; }
+    .eyebrow { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--terra); margin-bottom: 0.5rem; }
+    h2 { font-family: 'Playfair Display', serif; font-size: clamp(1.6rem, 3.5vw, 2.4rem); margin-bottom: 0.4rem; }
+    h2 em { font-style: italic; color: var(--terra); }
+    .sub { color: var(--muted); font-size: 0.85rem; }
+
+    /* Map */
+    .map-wrap { flex: 1; position: relative; margin: 0 1.5rem; min-height: 340px; }
+    #map {
+      width: 100%; height: 100%; min-height: 340px;
+      border: 1.5px solid var(--ink); border-radius: 6px;
+      box-shadow: 4px 4px 0 var(--ink);
+      cursor: crosshair;
+    }
+
+    /* Override leaflet tiles to match aesthetic */
+    .leaflet-tile { filter: saturate(0.5) sepia(0.2); }
+
+    /* Dart cursor hint */
+    .map-hint { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: white; border: 1px solid #d4cec5; border-radius: 100px; padding: 0.3rem 0.9rem; font-size: 0.75rem; color: var(--muted); z-index: 999; pointer-events: none; white-space: nowrap; }
+    .map-hint.hidden { display: none; }
+
+    /* Bottom controls */
+    .controls { padding: 1.25rem 1.5rem 2rem; flex-shrink: 0; text-align: center; }
+
+    .landed-info { font-size: 0.875rem; color: var(--muted); margin-bottom: 1rem; min-height: 1.4rem; }
+    .landed-info strong { color: var(--terra); }
+
+    .confirm-btns { display: flex; gap: 0.75rem; justify-content: center; margin-bottom: 0; }
+    .confirm-btns.hidden { display: none; }
+
+    .btn-confirm { padding: 0.85rem 2rem; background: var(--terra); color: white; border: 1.5px solid var(--terra); border-radius: 4px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: 3px 3px 0 rgba(196,98,45,0.3); }
+    .btn-confirm:hover { background: var(--ink); border-color: var(--ink); }
+    .btn-reset { padding: 0.85rem 1.5rem; background: transparent; color: var(--muted); border: 1.5px solid #d4cec5; border-radius: 4px; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; }
+    .btn-reset:hover { border-color: var(--ink); color: var(--ink); }
+
+    /* Loading */
+    .loading { display: none; text-align: center; padding: 2rem; }
+    .loading.show { display: block; }
+    .spinner { width: 30px; height: 30px; border: 2px solid #e0d9d0; border-top-color: var(--terra); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+    .loading-text { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-style: italic; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <a href="/" class="logo">Wand<span>r</span></a>
+    <div class="step-indicator">Step 2 of 5</div>
+  </header>
+
+  <div class="intro">
+    <p class="eyebrow">Domestic trip</p>
+    <h2>Throw a dart on <em>{{ home_country }}</em></h2>
+    <p class="sub">Click anywhere on the map. We'll find destinations near where you land.</p>
+  </div>
+
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div class="map-hint" id="map-hint">Click anywhere to throw your dart</div>
+  </div>
+
+  <div class="controls" id="controls">
+    <p class="landed-info" id="landed-info"></p>
+    <div class="confirm-btns hidden" id="confirm-btns">
+      <button class="btn-confirm" onclick="findDestinations()">Find destinations here</button>
+      <button class="btn-reset" onclick="resetDart()">Try again</button>
+    </div>
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p class="loading-text">Finding destinations...</p>
+    </div>
+  </div>
+
+  <form id="dart-submit-form" action="/dart/pick" method="post" style="display:none">
+    <input type="hidden" name="lat" id="dart-lat">
+    <input type="hidden" name="lng" id="dart-lng">
+    <input type="hidden" name="place_name" id="dart-place">
+    <input type="hidden" name="home_country" value="{{ home_country }}">
+    <input type="hidden" name="travel_type" value="domestic">
+  </form>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+  const homeCountry = {{ home_country | tojson }};
+  let dartMarker = null;
+  let dartLat = null;
+  let dartLng = null;
+
+  // Country bounding boxes for initial zoom
+  const COUNTRY_BOUNDS = {
+    'united states': [[24.396308, -125.0], [49.384358, -66.93457]],
+    'usa': [[24.396308, -125.0], [49.384358, -66.93457]],
+    'united kingdom': [[49.8, -8.2], [60.9, 2.0]],
+    'uk': [[49.8, -8.2], [60.9, 2.0]],
+    'canada': [[41.7, -141.0], [83.1, -52.6]],
+    'australia': [[-43.6, 113.3], [-10.7, 153.6]],
+    'india': [[8.0, 68.1], [37.1, 97.4]],
+    'brazil': [[-33.8, -73.9], [5.3, -34.7]],
+    'germany': [[47.3, 5.9], [55.1, 15.0]],
+    'france': [[41.3, -5.1], [51.1, 9.6]],
+    'spain': [[35.9, -9.3], [43.8, 4.3]],
+    'italy': [[36.6, 6.6], [47.1, 18.5]],
+    'japan': [[24.0, 122.9], [45.5, 145.8]],
+    'china': [[18.2, 73.5], [53.6, 134.8]],
+    'mexico': [[14.5, -117.1], [32.7, -86.7]],
+    'south africa': [[-34.8, 16.5], [-22.1, 32.9]],
+    'argentina': [[-55.1, -73.6], [-21.8, -53.6]],
+  };
+
+  function getBounds(country) {
+    const key = country.toLowerCase();
+    for (const [k, v] of Object.entries(COUNTRY_BOUNDS)) {
+      if (key.includes(k) || k.includes(key)) return v;
+    }
+    return null;
+  }
+
+  // Init map
+  const map = L.map('map', { zoomControl: true, attributionControl: false });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18
+  }).addTo(map);
+
+  const bounds = getBounds(homeCountry);
+  if (bounds) {
+    map.fitBounds(bounds, { padding: [20, 20] });
+  } else {
+    map.setView([20, 0], 2);
+  }
+
+  // Custom dart icon
+  const dartIcon = L.divIcon({
+    html: '<div style="font-size:1.8rem;line-height:1;transform:rotate(45deg)">🎯</div>',
+    className: '',
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
+
+  // Click to place dart
+  map.on('click', function(e) {
+    dartLat = e.latlng.lat.toFixed(5);
+    dartLng = e.latlng.lng.toFixed(5);
+
+    if (dartMarker) map.removeLayer(dartMarker);
+    dartMarker = L.marker([dartLat, dartLng], { icon: dartIcon }).addTo(map);
+
+    document.getElementById('map-hint').classList.add('hidden');
+    document.getElementById('landed-info').innerHTML = `Dart landed at <strong>${parseFloat(dartLat).toFixed(2)}° N, ${parseFloat(dartLng).toFixed(2)}° E</strong>`;
+    document.getElementById('confirm-btns').classList.remove('hidden');
+  });
+
+  function findDestinations() {
+    document.getElementById('confirm-btns').classList.add('hidden');
+    document.getElementById('loading').classList.add('show');
+    document.getElementById('dart-lat').value = dartLat;
+    document.getElementById('dart-lng').value = dartLng;
+    document.getElementById('dart-place').value = `${dartLat}, ${dartLng}`;
+    document.getElementById('dart-submit-form').submit();
+  }
+
+  function resetDart() {
+    if (dartMarker) { map.removeLayer(dartMarker); dartMarker = null; }
+    dartLat = null; dartLng = null;
+    document.getElementById('map-hint').classList.remove('hidden');
+    document.getElementById('landed-info').textContent = '';
+    document.getElementById('confirm-btns').classList.add('hidden');
+  }
+</script>
+</body>
+</html>

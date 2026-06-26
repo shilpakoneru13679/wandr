@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wandr: Your Trip, Your Way</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --sand: #f5f0e8; --ink: #1a1712; --terra: #c4622d; --muted: #8a8070; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--sand); color: var(--ink); min-height: 100vh; overflow-x: hidden; }
+    body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events: none; z-index: 0; }
+    .page { position: relative; z-index: 1; min-height: 100vh; display: flex; flex-direction: column; }
+    header { padding: 2rem 3rem; display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-family: 'Playfair Display', serif; font-size: 1.5rem; letter-spacing: 0.05em; }
+    .logo span { color: var(--terra); }
+    .tagline-small { font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+    main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 2rem; text-align: center; }
+    .eyebrow { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--terra); margin-bottom: 1.5rem; opacity: 0; animation: fadeUp 0.6s ease forwards; }
+    h1 { font-family: 'Playfair Display', serif; font-size: clamp(2.8rem, 7vw, 5.5rem); line-height: 1.1; max-width: 700px; margin-bottom: 1.2rem; opacity: 0; animation: fadeUp 0.6s ease 0.15s forwards; }
+    h1 em { font-style: italic; color: var(--terra); }
+    .subtitle { font-size: 1rem; color: var(--muted); font-weight: 300; max-width: 420px; line-height: 1.7; margin-bottom: 2.5rem; opacity: 0; animation: fadeUp 0.6s ease 0.3s forwards; }
+    .input-section { width: 100%; max-width: 560px; opacity: 0; animation: fadeUp 0.6s ease 0.45s forwards; }
+
+    .field-label { display: block; font-size: 0.68rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.6rem; text-align: left; }
+
+    .country-input-wrap { margin-bottom: 1.25rem; }
+    .country-input-wrap input { width: 100%; padding: 0.85rem 1.2rem; border: 1.5px solid #d4cec5; border-radius: 4px; font-family: 'DM Sans', sans-serif; font-size: 0.95rem; color: var(--ink); background: white; outline: none; transition: border 0.15s; }
+    .country-input-wrap input:focus { border-color: var(--terra); }
+    .country-input-wrap input::placeholder { color: #c4bdb5; }
+
+    .destination-form { display: flex; border: 1.5px solid var(--ink); border-radius: 4px; overflow: hidden; background: white; box-shadow: 4px 4px 0 var(--ink); transition: box-shadow 0.2s; margin-bottom: 0; }
+    .destination-form:focus-within { box-shadow: 6px 6px 0 var(--terra); }
+    .destination-form input { flex: 1; padding: 1.1rem 1.4rem; border: none; outline: none; font-family: 'DM Sans', sans-serif; font-size: 1rem; background: transparent; color: var(--ink); }
+    .destination-form input::placeholder { color: #b0a899; }
+    .destination-form button { padding: 1.1rem 1.6rem; background: var(--ink); color: var(--sand); border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 500; letter-spacing: 0.05em; transition: background 0.2s; white-space: nowrap; }
+    .destination-form button:hover { background: var(--terra); }
+
+    .divider { display: flex; align-items: center; gap: 1rem; margin: 1.25rem 0; color: var(--muted); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #d4cec5; }
+
+    .unknown-btn { width: 100%; padding: 1rem; background: transparent; border: 1.5px solid #c4bdb5; border-radius: 4px; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; }
+    .unknown-btn:hover { border-color: var(--terra); color: var(--terra); background: rgba(196,98,45,0.04); }
+
+    .strip { border-top: 1px solid #d4cec5; padding: 1.2rem 3rem; display: flex; gap: 2.5rem; justify-content: center; }
+    .strip span { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="logo">Wand<span>r</span></div>
+    <div class="tagline-small">Trip planning, done right.</div>
+  </header>
+
+  <main>
+    <p class="eyebrow">Your next trip starts here</p>
+    <h1>Where are you <em>going?</em></h1>
+    <p class="subtitle">Tell us where you're flying from and we'll build an itinerary around your vibe, budget, and pace.</p>
+
+    <div class="input-section">
+      <label class="field-label">Flying out of which country?</label>
+      <div class="country-input-wrap">
+        <input type="text" id="home-country-input" placeholder="e.g. United States, India, Brazil..." autocomplete="off">
+      </div>
+
+      <label class="field-label">Where are you headed?</label>
+      <form action="/flow/known" method="post" class="destination-form" id="known-form">
+        <input type="hidden" name="home_country" id="home_country_known" value="">
+        <input type="text" name="city" placeholder="Type a city: Paris, Kyoto, Medellín..." autocomplete="off">
+        <button type="submit">Let's go</button>
+      </form>
+
+      <div class="divider">or</div>
+
+      <form action="/flow/unknown" method="post" id="unknown-form">
+        <input type="hidden" name="home_country" id="home_country_unknown" value="">
+        <button type="submit" class="unknown-btn">Not sure where to go? Let us help.</button>
+      </form>
+    </div>
+  </main>
+
+  <div class="strip">
+    <span>Personalized</span><span>·</span><span>Curated</span><span>·</span><span>Vibe-matched</span>
+  </div>
+</div>
+
+<script>
+  function syncAndValidate(e) {
+    const country = document.getElementById('home-country-input').value.trim();
+    if (!country) { e.preventDefault(); alert('Please enter your home country first.'); return false; }
+    document.getElementById('home_country_known').value = country;
+    document.getElementById('home_country_unknown').value = country;
+    return true;
+  }
+  document.getElementById('known-form').addEventListener('submit', function(e) { syncAndValidate(e); });
+  document.getElementById('unknown-form').addEventListener('submit', function(e) { syncAndValidate(e); });
+</script>
+</body>
+</html>

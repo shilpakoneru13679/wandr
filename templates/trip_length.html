@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wandr: Trip Details</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --sand: #f5f0e8; --ink: #1a1712; --terra: #c4622d; --muted: #8a8070; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--sand); color: var(--ink); min-height: 100vh; display: flex; flex-direction: column; }
+    body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events: none; z-index: 0; }
+    .page { position: relative; z-index: 1; min-height: 100vh; display: flex; flex-direction: column; }
+    header { padding: 2rem 3rem; display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-family: 'Playfair Display', serif; font-size: 1.5rem; letter-spacing: 0.05em; text-decoration: none; color: var(--ink); }
+    .logo span { color: var(--terra); }
+    .step-indicator { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+    main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem 2rem 3rem; }
+
+    .card {
+      background: white; border: 1.5px solid var(--ink); border-radius: 6px;
+      padding: 2.5rem 3rem; max-width: 620px; width: 100%;
+      box-shadow: 5px 5px 0 var(--ink); animation: fadeUp 0.5s ease forwards;
+    }
+    .destination-tag { display: inline-block; padding: 0.3rem 0.9rem; border: 1px solid var(--terra); border-radius: 2px; color: var(--terra); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 1.25rem; }
+    h2 { font-family: 'Playfair Display', serif; font-size: 2rem; margin-bottom: 0.5rem; }
+    .prompt { color: var(--muted); font-size: 0.875rem; margin-bottom: 2rem; line-height: 1.6; }
+    .field-label { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.75rem; display: block; }
+
+    /* Calendar */
+    .calendar-wrap { margin-bottom: 2rem; }
+
+    .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .cal-nav button { background: none; border: 1.5px solid #d4cec5; border-radius: 4px; padding: 0.35rem 0.7rem; cursor: pointer; font-size: 0.9rem; color: var(--muted); transition: all 0.15s; }
+    .cal-nav button:hover { border-color: var(--terra); color: var(--terra); }
+    .cal-month { font-family: 'Playfair Display', serif; font-size: 1.1rem; }
+
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+    .cal-dow { text-align: center; font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 0.3rem 0 0.6rem; }
+    .cal-day {
+      text-align: center; padding: 0.5rem 0.2rem; font-size: 0.875rem;
+      border-radius: 4px; cursor: pointer; transition: all 0.1s;
+      color: var(--ink); position: relative;
+    }
+    .cal-day:hover:not(.empty):not(.past) { background: rgba(196,98,45,0.1); color: var(--terra); }
+    .cal-day.empty { cursor: default; }
+    .cal-day.past { color: #d4cec5; cursor: not-allowed; }
+    .cal-day.start { background: var(--ink); color: var(--sand); border-radius: 4px 0 0 4px; }
+    .cal-day.end { background: var(--ink); color: var(--sand); border-radius: 0 4px 4px 0; }
+    .cal-day.start.end { border-radius: 4px; }
+    .cal-day.in-range { background: rgba(26,23,18,0.07); border-radius: 0; }
+    .cal-day.today::after { content: ''; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; background: var(--terra); border-radius: 50%; }
+
+    /* Date summary */
+    .date-summary {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.85rem 1.1rem; background: var(--sand);
+      border: 1.5px solid #d4cec5; border-radius: 4px;
+      margin-bottom: 1.5rem; font-size: 0.875rem;
+      min-height: 48px;
+    }
+    .date-summary .dates { color: var(--ink); font-weight: 500; }
+    .date-summary .night-count { color: var(--terra); font-size: 0.8rem; letter-spacing: 0.05em; }
+    .date-summary.selected { border-color: var(--terra); }
+
+    /* Budget chips */
+    .chips { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem; }
+    .chip input[type="radio"] { display: none; }
+    .chip label { display: block; padding: 0.65rem 1.2rem; border: 1.5px solid #d4cec5; border-radius: 4px; cursor: pointer; font-size: 0.9rem; color: var(--muted); transition: all 0.15s; }
+    .chip input:checked + label { border-color: var(--ink); background: var(--ink); color: var(--sand); }
+    .chip label:hover { border-color: var(--terra); color: var(--terra); }
+
+    .submit-btn { width: 100%; padding: 1rem; background: var(--terra); color: white; border: 1.5px solid var(--terra); border-radius: 4px; font-family: 'DM Sans', sans-serif; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: 3px 3px 0 rgba(196,98,45,0.3); }
+    .submit-btn:hover { background: var(--ink); border-color: var(--ink); }
+    .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <a href="/" class="logo">Wand<span>r</span></a>
+    <div class="step-indicator">Step 2 of 4</div>
+  </header>
+  <main>
+    <div class="card">
+      <div class="destination-tag">{{ city }}</div>
+      <h2>When are you going?</h2>
+      <p class="prompt">Pick your start and end dates.</p>
+
+      <form action="/flow/vibe" method="post" id="trip-form">
+        <input type="hidden" name="city" value="{{ city }}">
+        <input type="hidden" name="travel_type" value="{{ travel_type }}">
+        <input type="hidden" name="home_country" value="{{ home_country }}">
+        <input type="hidden" name="duration" id="duration-input" value="">
+        <input type="hidden" name="start_date" id="start-date-input" value="">
+        <input type="hidden" name="end_date" id="end-date-input" value="">
+
+        <!-- Calendar -->
+        <div class="calendar-wrap">
+          <label class="field-label">Travel dates</label>
+
+          <div class="cal-nav">
+            <button type="button" onclick="prevMonth()">&#8592;</button>
+            <span class="cal-month" id="cal-month-label"></span>
+            <button type="button" onclick="nextMonth()">&#8594;</button>
+          </div>
+
+          <div class="cal-grid" id="cal-grid">
+            <div class="cal-dow">Su</div>
+            <div class="cal-dow">Mo</div>
+            <div class="cal-dow">Tu</div>
+            <div class="cal-dow">We</div>
+            <div class="cal-dow">Th</div>
+            <div class="cal-dow">Fr</div>
+            <div class="cal-dow">Sa</div>
+          </div>
+
+          <div class="date-summary" id="date-summary">
+            <span class="dates" id="date-display">Click a start date</span>
+            <span class="night-count" id="night-count"></span>
+          </div>
+        </div>
+
+        <label class="field-label">Budget range</label>
+        <div class="chips">
+          {% for opt in [("Budget 💸", "budget"), ("Mid-range 🌿", "mid-range"), ("Splurge ✨", "high")] %}
+          <div class="chip">
+            <input type="radio" name="budget" id="bud_{{ opt[1] }}" value="{{ opt[1] }}" required>
+            <label for="bud_{{ opt[1] }}">{{ opt[0] }}</label>
+          </div>
+          {% endfor %}
+        </div>
+
+        <button type="submit" class="submit-btn" id="submit-btn" disabled>Continue</button>
+      </form>
+    </div>
+  </main>
+</div>
+
+<script>
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  let viewYear = today.getFullYear();
+  let viewMonth = today.getMonth();
+  let startDate = null;
+  let endDate = null;
+
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DAYS_SHORT = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+  function isSameDay(a, b) {
+    return a && b && a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+  }
+
+  function formatDate(d) {
+    return d ? `${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}, ${d.getFullYear()}` : '';
+  }
+
+  function renderCalendar() {
+    document.getElementById('cal-month-label').textContent = `${MONTHS[viewMonth]} ${viewYear}`;
+
+    // Remove old day cells (keep DOW headers = first 7 children)
+    const grid = document.getElementById('cal-grid');
+    while (grid.children.length > 7) grid.removeChild(grid.lastChild);
+
+    const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+    // Empty cells
+    for (let i = 0; i < firstDay; i++) {
+      const el = document.createElement('div');
+      el.className = 'cal-day empty';
+      grid.appendChild(el);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(viewYear, viewMonth, d);
+      const el = document.createElement('div');
+      el.className = 'cal-day';
+      el.textContent = d;
+
+      if (date < today) {
+        el.classList.add('past');
+      } else {
+        if (isSameDay(date, today)) el.classList.add('today');
+        if (isSameDay(date, startDate)) el.classList.add('start');
+        if (isSameDay(date, endDate)) el.classList.add('end');
+        if (startDate && endDate && date > startDate && date < endDate) el.classList.add('in-range');
+        if (isSameDay(date, startDate) && isSameDay(date, endDate)) { el.classList.add('start'); el.classList.add('end'); }
+
+        el.addEventListener('click', () => handleDayClick(date));
+      }
+      grid.appendChild(el);
+    }
+  }
+
+  function handleDayClick(date) {
+    if (!startDate || (startDate && endDate)) {
+      // Start fresh
+      startDate = date;
+      endDate = null;
+    } else if (date < startDate) {
+      // Clicked before start, reset
+      startDate = date;
+      endDate = null;
+    } else if (isSameDay(date, startDate)) {
+      // Clicked same day = single day trip
+      endDate = date;
+    } else {
+      endDate = date;
+    }
+    updateSummary();
+    renderCalendar();
+  }
+
+  function updateSummary() {
+    const display = document.getElementById('date-display');
+    const nightCount = document.getElementById('night-count');
+    const summary = document.getElementById('date-summary');
+    const submitBtn = document.getElementById('submit-btn');
+
+    if (startDate && !endDate) {
+      display.textContent = `${formatDate(startDate)} - pick end date`;
+      nightCount.textContent = '';
+      summary.classList.remove('selected');
+      submitBtn.disabled = true;
+    } else if (startDate && endDate) {
+      const diffMs = endDate - startDate;
+      const days = Math.round(diffMs / (1000 * 60 * 60 * 24));
+      const nights = days === 0 ? 1 : days;
+
+      display.textContent = `${formatDate(startDate)} - ${formatDate(endDate)}`;
+      nightCount.textContent = nights === 1 ? '1 day' : `${nights} days`;
+      summary.classList.add('selected');
+      submitBtn.disabled = false;
+
+      // Set hidden inputs
+      document.getElementById('duration-input').value = `${nights} day${nights > 1 ? 's' : ''}`;
+      document.getElementById('start-date-input').value = startDate.toISOString().split('T')[0];
+      document.getElementById('end-date-input').value = endDate.toISOString().split('T')[0];
+    } else {
+      display.textContent = 'Click a start date';
+      nightCount.textContent = '';
+      summary.classList.remove('selected');
+      submitBtn.disabled = true;
+    }
+  }
+
+  function prevMonth() {
+    viewMonth--;
+    if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+    renderCalendar();
+  }
+
+  function nextMonth() {
+    viewMonth++;
+    if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+    renderCalendar();
+  }
+
+  document.getElementById('trip-form').addEventListener('submit', function(e) {
+    if (!startDate || !endDate) { e.preventDefault(); return; }
+  });
+
+  renderCalendar();
+  updateSummary();
+</script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wandr: Pick Your Destination</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --sand: #f5f0e8; --ink: #1a1712; --terra: #c4622d; --muted: #8a8070; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--sand); color: var(--ink); min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events: none; z-index: 0; }
+    .page { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; padding: 0 2rem 4rem; }
+    header { padding: 2rem 0; display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-family: 'Playfair Display', serif; font-size: 1.5rem; letter-spacing: 0.05em; text-decoration: none; color: var(--ink); }
+    .logo span { color: var(--terra); }
+    .step-indicator { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+    .intro { margin: 2rem 0 2.5rem; animation: fadeUp 0.4s ease forwards; }
+    h2 { font-family: 'Playfair Display', serif; font-size: 2.2rem; margin-bottom: 0.5rem; }
+    .prompt { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+    .cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem; }
+    @media (max-width: 500px) { .cards-grid { grid-template-columns: 1fr; } }
+    .dest-card { position: relative; border: 1.5px solid #d4cec5; border-radius: 6px; padding: 1.75rem 1.5rem; cursor: pointer; background: white; transition: all 0.2s; animation: fadeUp 0.4s ease forwards; animation-fill-mode: both; }
+    .dest-card:nth-child(2) { animation-delay: 0.08s; }
+    .dest-card:nth-child(3) { animation-delay: 0.16s; }
+    .dest-card:nth-child(4) { animation-delay: 0.24s; }
+    .dest-card:hover { border-color: var(--terra); box-shadow: 4px 4px 0 var(--terra); transform: translate(-2px, -2px); }
+    .dest-card.selected { border-color: var(--ink); box-shadow: 5px 5px 0 var(--ink); transform: translate(-2px, -2px); background: var(--ink); color: var(--sand); }
+    .dest-card.selected .country { color: rgba(245,240,232,0.6); }
+    .dest-card.selected .tagline { color: rgba(245,240,232,0.8); }
+    .dest-emoji { font-size: 2rem; margin-bottom: 1rem; }
+    .dest-city { font-family: 'Playfair Display', serif; font-size: 1.5rem; margin-bottom: 0.2rem; }
+    .country { font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.85rem; }
+    .tagline { font-size: 0.875rem; line-height: 1.5; color: #5a5248; }
+    .check { position: absolute; top: 1rem; right: 1rem; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid #d4cec5; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; transition: all 0.2s; }
+    .dest-card.selected .check { background: var(--terra); border-color: var(--terra); color: white; }
+    .continue-btn { width: 100%; padding: 1.1rem; background: var(--terra); color: white; border: 1.5px solid var(--terra); border-radius: 4px; font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: 3px 3px 0 rgba(196,98,45,0.3); opacity: 0.4; pointer-events: none; }
+    .continue-btn.active { opacity: 1; pointer-events: auto; }
+    .continue-btn.active:hover { background: var(--ink); border-color: var(--ink); }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <a href="/" class="logo">Wand<span>r</span></a>
+    <div class="step-indicator">Step 3 of 5</div>
+  </header>
+  <div class="intro">
+    <h2>Here's what we found.</h2>
+    <p class="prompt">Pick the one that feels right.</p>
+  </div>
+  <div class="cards-grid">
+    {% for dest in destinations %}
+    <div class="dest-card" data-city="{{ dest.city }}, {{ dest.country }}" onclick="selectDest(this)">
+      <div class="check">✓</div>
+      <div class="dest-emoji">{{ dest.emoji }}</div>
+      <div class="dest-city">{{ dest.city }}</div>
+      <div class="country">{{ dest.country }}</div>
+      <div class="tagline">{{ dest.tagline }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <form action="/flow/vibe-from-suggestion" method="post" id="dest-form">
+    <input type="hidden" name="city" id="city-input" value="">
+    <input type="hidden" name="duration" value="{{ duration }}">
+    <input type="hidden" name="budget" value="{{ budget }}">
+    <input type="hidden" name="travel_type" value="{{ travel_type }}">
+    <input type="hidden" name="home_country" value="{{ home_country }}">
+    <button type="submit" class="continue-btn" id="continue-btn">Continue with this destination</button>
+  </form>
+</div>
+<script>
+  let selectedCard = null;
+  function selectDest(card) {
+    if (selectedCard) selectedCard.classList.remove('selected');
+    card.classList.add('selected');
+    selectedCard = card;
+    document.getElementById('city-input').value = card.dataset.city;
+    const btn = document.getElementById('continue-btn');
+    btn.classList.add('active');
+    btn.textContent = `Continue with ${card.dataset.city.split(',')[0]} →`;
+  }
+</script>
+</body>
+</html>

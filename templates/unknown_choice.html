@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wandr: Find Your Destination</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --sand: #f5f0e8; --ink: #1a1712; --terra: #c4622d; --muted: #8a8070; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--sand); color: var(--ink); min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events: none; z-index: 0; }
+    .page { position: relative; z-index: 1; min-height: 100vh; display: flex; flex-direction: column; }
+    header { padding: 2rem 3rem; display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-family: 'Playfair Display', serif; font-size: 1.5rem; letter-spacing: 0.05em; text-decoration: none; color: var(--ink); }
+    .logo span { color: var(--terra); }
+    .step-indicator { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+
+    main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 2rem; }
+
+    /* Step 1: domestic or international */
+    .step { display: none; width: 100%; max-width: 560px; text-align: center; animation: fadeUp 0.4s ease forwards; }
+    .step.active { display: block; }
+
+    .eyebrow { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--terra); margin-bottom: 1rem; }
+    h2 { font-family: 'Playfair Display', serif; font-size: clamp(1.8rem, 4vw, 2.6rem); margin-bottom: 0.6rem; }
+    h2 em { font-style: italic; color: var(--terra); }
+    .sub { color: var(--muted); font-size: 0.875rem; line-height: 1.7; margin-bottom: 2.5rem; }
+
+    .type-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 0; }
+    @media (max-width: 460px) { .type-cards { grid-template-columns: 1fr; } }
+
+    .type-card { padding: 2rem 1.5rem; border: 1.5px solid #d4cec5; border-radius: 6px; background: white; cursor: pointer; text-align: center; transition: all 0.2s; }
+    .type-card:hover { border-color: var(--terra); box-shadow: 4px 4px 0 var(--terra); transform: translate(-2px,-2px); }
+    .type-card .icon { font-size: 2rem; margin-bottom: 0.85rem; }
+    .type-card .title { font-family: 'Playfair Display', serif; font-size: 1.2rem; margin-bottom: 0.4rem; }
+    .type-card .desc { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+
+    /* Step 2: how to discover */
+    .discover-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 460px) { .discover-cards { grid-template-columns: 1fr; } }
+
+    .discover-card { padding: 2rem 1.5rem; border: 1.5px solid #d4cec5; border-radius: 6px; background: white; text-align: center; transition: all 0.2s; }
+    .discover-card.featured { border-color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
+    .discover-card:hover { border-color: var(--terra); box-shadow: 4px 4px 0 var(--terra); transform: translate(-2px,-2px); cursor: pointer; }
+    .discover-card .icon { font-size: 2rem; margin-bottom: 0.85rem; }
+    .discover-card .title { font-family: 'Playfair Display', serif; font-size: 1.2rem; margin-bottom: 0.4rem; }
+    .discover-card .desc { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+
+    .back-btn { background: none; border: none; color: var(--muted); font-size: 0.8rem; cursor: pointer; margin-top: 1.5rem; font-family: 'DM Sans', sans-serif; text-decoration: underline; }
+    .back-btn:hover { color: var(--ink); }
+
+    /* hidden forms */
+    .hidden-form { display: none; }
+
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <a href="/" class="logo">Wand<span>r</span></a>
+    <div class="step-indicator">Step 2 of 5</div>
+  </header>
+
+  <main>
+    <!-- Step 1: domestic or international -->
+    <div class="step active" id="step-type">
+      <p class="eyebrow">Let's narrow it down</p>
+      <h2>Staying in <em>{{ home_country }}</em> or going abroad?</h2>
+      <p class="sub">This helps us figure out the right kind of destinations for you.</p>
+      <div class="type-cards">
+        <div class="type-card" onclick="selectType('domestic')">
+          <div class="icon">🏠</div>
+          <div class="title">Staying in {{ home_country }}</div>
+          <p class="desc">Explore somewhere new within your own country.</p>
+        </div>
+        <div class="type-card" onclick="selectType('international')">
+          <div class="icon">✈️</div>
+          <div class="title">Going abroad</div>
+          <p class="desc">Time to get a stamp in the passport.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: how to discover -->
+    <div class="step" id="step-discover">
+      <p class="eyebrow" id="discover-eyebrow">How do you want to find it?</p>
+      <h2 id="discover-heading">Pick your method</h2>
+      <p class="sub" id="discover-sub">Let chance decide or answer a few questions.</p>
+      <div class="discover-cards" id="discover-cards">
+        <!-- filled by JS -->
+      </div>
+      <button class="back-btn" onclick="goBack()">Back</button>
+    </div>
+  </main>
+
+  <!-- Hidden forms -->
+  <form id="dart-form" action="/dart" method="post" class="hidden-form">
+    <input type="hidden" name="home_country" value="{{ home_country }}">
+    <input type="hidden" name="travel_type" value="domestic">
+  </form>
+  <form id="globe-form" action="/globe" method="post" class="hidden-form">
+    <input type="hidden" name="home_country" value="{{ home_country }}">
+    <input type="hidden" name="travel_type" value="international">
+  </form>
+  <form id="survey-form" action="/flow/unknown-survey" method="post" class="hidden-form">
+    <input type="hidden" name="home_country" value="{{ home_country }}">
+    <input type="hidden" name="travel_type" id="survey-travel-type" value="">
+  </form>
+</div>
+
+<script>
+  let selectedType = null;
+
+  function selectType(type) {
+    selectedType = type;
+    document.getElementById('step-type').classList.remove('active');
+
+    const cards = document.getElementById('discover-cards');
+    if (type === 'domestic') {
+      document.getElementById('discover-heading').textContent = 'How do you want to explore?';
+      document.getElementById('discover-sub').textContent = 'Throw a dart on the map or answer a few questions.';
+      cards.innerHTML = `
+        <div class="discover-card featured" onclick="submit('dart')">
+          <div class="icon">🎯</div>
+          <div class="title">Throw a dart</div>
+          <p class="desc">Drop a dart anywhere on the map. We'll find places near where it lands.</p>
+        </div>
+        <div class="discover-card" onclick="submit('survey')">
+          <div class="icon">✦</div>
+          <div class="title">Take the survey</div>
+          <p class="desc">Answer a few questions and we'll match you with the right spot.</p>
+        </div>`;
+    } else {
+      document.getElementById('discover-heading').textContent = 'How do you want to explore?';
+      document.getElementById('discover-sub').textContent = 'Spin the globe or answer a few questions.';
+      cards.innerHTML = `
+        <div class="discover-card featured" onclick="submit('globe')">
+          <div class="icon">🌍</div>
+          <div class="title">Spin the globe</div>
+          <p class="desc">Stop it anywhere. We'll find destinations near where it lands.</p>
+        </div>
+        <div class="discover-card" onclick="submit('survey')">
+          <div class="icon">✦</div>
+          <div class="title">Take the survey</div>
+          <p class="desc">Answer a few questions and we'll match you with the right place.</p>
+        </div>`;
+    }
+
+    document.getElementById('step-discover').classList.add('active');
+  }
+
+  function submit(method) {
+    if (method === 'dart') document.getElementById('dart-form').submit();
+    else if (method === 'globe') document.getElementById('globe-form').submit();
+    else {
+      document.getElementById('survey-travel-type').value = selectedType;
+      document.getElementById('survey-form').submit();
+    }
+  }
+
+  function goBack() {
+    document.getElementById('step-discover').classList.remove('active');
+    document.getElementById('step-type').classList.add('active');
+  }
+</script>
+</body>
+</html>

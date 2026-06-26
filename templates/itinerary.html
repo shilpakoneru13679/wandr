@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wandr: Your {{ city }} Itinerary</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --sand: #f5f0e8; --ink: #1a1712; --terra: #c4622d; --muted: #8a8070; --gold: #d4a843; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--sand); color: var(--ink); min-height: 100vh; }
+    body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events: none; z-index: 0; }
+    .page { position: relative; z-index: 1; }
+
+    .hero-banner { background: var(--ink); color: var(--sand); padding: 3rem 3rem 2.5rem; animation: fadeUp 0.5s ease forwards; }
+    .hero-banner header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3rem; }
+    .logo { font-family: 'Playfair Display', serif; font-size: 1.4rem; letter-spacing: 0.05em; text-decoration: none; color: var(--sand); }
+    .logo span { color: var(--terra); }
+    .trip-meta { display: flex; gap: 1.5rem; margin-bottom: 1.2rem; flex-wrap: wrap; }
+    .meta-pill { padding: 0.3rem 0.8rem; border: 1px solid rgba(245,240,232,0.3); border-radius: 100px; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(245,240,232,0.7); }
+    .hero-city { font-family: 'Playfair Display', serif; font-size: clamp(3rem, 8vw, 5.5rem); line-height: 1; margin-bottom: 0.5rem; }
+    .hero-vibe { font-family: 'Playfair Display', serif; font-style: italic; font-size: 1.2rem; color: var(--terra); }
+
+    .content { max-width: 720px; margin: 0 auto; padding: 3rem 2rem 2rem; }
+
+    .itinerary-body { line-height: 1.8; animation: fadeUp 0.5s ease 0.2s both; }
+    .intro-para { font-size: 1.05rem; line-height: 1.8; color: #3d3830; margin-bottom: 2.5rem; padding-bottom: 2rem; border-bottom: 1px solid #d4cec5; }
+    .day-block { margin-bottom: 2.5rem; padding-bottom: 2.5rem; border-bottom: 1px solid #d4cec5; }
+    .day-header { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 1.5rem; }
+    .day-number { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--terra); font-weight: 500; }
+    .day-title { font-family: 'Playfair Display', serif; font-size: 1.4rem; }
+    .time-slot { margin-bottom: 1.1rem; }
+    .time-label { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.3rem; }
+    .time-content { font-size: 0.95rem; line-height: 1.7; color: #3d3830; }
+    .local-tip { margin-top: 1rem; padding: 0.85rem 1.1rem; background: rgba(196,98,45,0.06); border-left: 3px solid var(--terra); border-radius: 0 4px 4px 0; font-size: 0.875rem; color: #5a4038; line-height: 1.6; }
+    .local-tip strong { color: var(--terra); }
+    .dont-miss { background: var(--ink); color: var(--sand); border-radius: 6px; padding: 2rem 2.5rem; margin-top: 1rem; }
+    .dont-miss h3 { font-family: 'Playfair Display', serif; font-size: 1.3rem; margin-bottom: 1.25rem; color: var(--gold); }
+    .dont-miss ul { list-style: none; }
+    .dont-miss li { padding: 0.6rem 0; border-bottom: 1px solid rgba(245,240,232,0.1); font-size: 0.9rem; line-height: 1.6; color: rgba(245,240,232,0.85); }
+    .dont-miss li:last-child { border-bottom: none; }
+    .dont-miss li::before { content: '✦ '; color: var(--terra); }
+    .raw-itinerary { white-space: pre-wrap; font-size: 0.9rem; line-height: 1.8; color: #3d3830; font-family: 'DM Sans', sans-serif; }
+
+    /* Actions */
+    .actions { display: flex; gap: 1rem; margin-top: 2.5rem; flex-wrap: wrap; }
+    .btn-primary { padding: 0.85rem 1.5rem; background: var(--terra); color: white; border: 1.5px solid var(--terra); border-radius: 4px; text-decoration: none; font-size: 0.875rem; font-weight: 500; transition: all 0.2s; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+    .btn-primary:hover { background: var(--ink); border-color: var(--ink); }
+    .btn-secondary { padding: 0.85rem 1.5rem; background: transparent; color: var(--muted); border: 1.5px solid #d4cec5; border-radius: 4px; text-decoration: none; font-size: 0.875rem; transition: all 0.2s; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+    .btn-secondary:hover { border-color: var(--ink); color: var(--ink); }
+
+    /* Edit section */
+    .edit-section { margin-top: 3rem; border-top: 1px solid #d4cec5; padding-top: 2.5rem; }
+    .edit-eyebrow { font-size: 0.68rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--terra); margin-bottom: 0.6rem; }
+    .edit-heading { font-family: 'Playfair Display', serif; font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .edit-sub { color: var(--muted); font-size: 0.875rem; line-height: 1.6; margin-bottom: 1.5rem; }
+    .edit-input-wrap { display: flex; gap: 0; border: 1.5px solid var(--ink); border-radius: 4px; overflow: hidden; background: white; box-shadow: 3px 3px 0 var(--ink); }
+    .edit-input-wrap textarea { flex: 1; padding: 1rem 1.2rem; border: none; outline: none; font-family: 'DM Sans', sans-serif; font-size: 0.9rem; color: var(--ink); background: transparent; resize: none; min-height: 80px; line-height: 1.6; }
+    .edit-input-wrap textarea::placeholder { color: #c4bdb5; }
+    .edit-submit { padding: 0 1.4rem; background: var(--ink); color: var(--sand); border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 0.8rem; font-weight: 500; letter-spacing: 0.05em; transition: background 0.2s; white-space: nowrap; align-self: stretch; }
+    .edit-submit:hover { background: var(--terra); }
+
+    .loading { display: none; text-align: center; padding: 2rem 1rem; }
+    .loading.show { display: block; }
+    .loading-text { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-style: italic; margin-bottom: 0.5rem; }
+    .loading-sub { color: var(--muted); font-size: 0.82rem; }
+    .spinner { width: 30px; height: 30px; border: 2px solid #e0d9d0; border-top-color: var(--terra); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 1rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Packing list */
+    .packing-section { margin-top: 3rem; padding-top: 2.5rem; border-top: 1px solid #d4cec5; }
+    .packing-eyebrow { font-size: 0.68rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--terra); margin-bottom: 0.5rem; }
+    .packing-heading { font-family: 'Playfair Display', serif; font-size: 1.6rem; margin-bottom: 0.4rem; }
+    .packing-sub { color: var(--muted); font-size: 0.875rem; margin-bottom: 2rem; }
+    .packing-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.25rem; }
+    .packing-category { background: white; border: 1.5px solid #d4cec5; border-radius: 6px; padding: 1.25rem 1.4rem; }
+    .packing-cat-title { font-size: 0.68rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--terra); margin-bottom: 0.85rem; font-weight: 500; }
+    .packing-items { list-style: none; }
+    .packing-items li { font-size: 0.875rem; color: #3d3830; padding: 0.3rem 0; border-bottom: 1px solid #f0ede8; display: flex; align-items: center; gap: 0.5rem; cursor: pointer; transition: color 0.15s; }
+    .packing-items li:last-child { border-bottom: none; }
+    .packing-items li::before { content: ''; width: 14px; height: 14px; border: 1.5px solid #d4cec5; border-radius: 3px; flex-shrink: 0; transition: all 0.15s; display: inline-block; }
+    .packing-items li.checked { color: #b0a899; text-decoration: line-through; }
+    .packing-items li.checked::before { background: var(--terra); border-color: var(--terra); content: '✓'; color: white; font-size: 0.6rem; display: flex; align-items: center; justify-content: center; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+
+    @media print { .hero-banner { background: var(--ink) !important; -webkit-print-color-adjust: exact; } .actions, .edit-section { display: none; } }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="hero-banner">
+    <header>
+      <a href="/" class="logo">Wand<span>r</span></a>
+    </header>
+    <div class="trip-meta">
+      {% if start_date and end_date %}
+      <span class="meta-pill">{{ start_date }} to {{ end_date }}</span>
+      {% else %}
+      <span class="meta-pill">{{ duration }}</span>
+      {% endif %}
+      <span class="meta-pill">{{ one_word }}</span>
+    </div>
+    <h1 class="hero-city">{{ city }}</h1>
+    <p class="hero-vibe">Your itinerary</p>
+  </div>
+
+  <div class="content">
+    <div class="itinerary-body" id="itinerary-output"></div>
+
+    <div class="actions">
+      <button onclick="window.print()" class="btn-primary">Save as PDF</button>
+      <a href="/" class="btn-secondary">Plan another trip</a>
+    </div>
+
+
+    <!-- Packing list -->
+    <div class="packing-section" id="packing-section">
+      <p class="packing-eyebrow">Before you go</p>
+      <h2 class="packing-heading">Packing list</h2>
+      <p class="packing-sub">Click items to check them off as you pack.</p>
+      <div class="packing-grid" id="packing-grid"></div>
+    </div>
+
+    <!-- Edit / Regenerate section -->
+    <div class="edit-section" id="edit-section">
+      <p class="edit-eyebrow">Want to change something?</p>
+      <h2 class="edit-heading">Request a revision</h2>
+      <p class="edit-sub">Describe what you want different and we'll redo it.</p>
+
+      <form action="/regenerate" method="post" id="edit-form">
+        <!-- Pass all context through for regeneration -->
+        <input type="hidden" name="city" value="{{ city }}">
+        <input type="hidden" name="duration" value="{{ duration }}">
+        <input type="hidden" name="budget" value="{{ budget }}">
+        <input type="hidden" name="pace" value="{{ pace }}">
+        <input type="hidden" name="priorities" value="{{ priorities }}">
+        <input type="hidden" name="accommodation" value="{{ accommodation }}">
+        <input type="hidden" name="one_word" value="{{ one_word }}">
+        <input type="hidden" name="travel_type" value="{{ travel_type }}">
+        <input type="hidden" name="home_country" value="{{ home_country }}">
+        <input type="hidden" name="niche_level" value="{{ niche_level }}">
+
+        <div class="edit-input-wrap">
+          <textarea name="edit_note" placeholder="e.g. more food spots and less museums, add a day trip option, make the evenings more low-key..." required></textarea>
+          <button type="submit" class="edit-submit">Revise →</button>
+        </div>
+      </form>
+
+      <div class="loading" id="edit-loading">
+        <div class="spinner"></div>
+        <p class="loading-text">Revising...</p>
+        <p class="loading-sub">Updating your trip now.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const raw = {{ itinerary | tojson }};
+
+  function renderItinerary(text) {
+    const container = document.getElementById('itinerary-output');
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+    let html = '', i = 0, inDontMiss = false, dontMissItems = [], currentDay = null;
+
+    while (i < lines.length) {
+      const line = lines[i];
+      if (line.match(/don'?t miss/i) || line.match(/hidden gems/i)) {
+        if (currentDay) { html += renderDay(currentDay); currentDay = null; }
+        inDontMiss = true; i++; continue;
+      }
+      if (inDontMiss) {
+        if (line.startsWith('-') || line.startsWith('•') || line.startsWith('*')) dontMissItems.push(line.replace(/^[-•*]\s*/, ''));
+        else if (line.length > 10) dontMissItems.push(line);
+        i++; continue;
+      }
+      const dayMatch = line.match(/^DAY\s+(\d+)\s*[–-]\s*(.+)/i);
+      if (dayMatch) {
+        if (currentDay) html += renderDay(currentDay);
+        currentDay = { number: dayMatch[1], title: dayMatch[2], slots: [] };
+        i++; continue;
+      }
+      const timeMatch = line.match(/^(Morning|Afternoon|Evening)\s*[:]\s*(.+)/i);
+      if (timeMatch && currentDay) { currentDay.slots.push({ time: timeMatch[1], content: timeMatch[2] }); i++; continue; }
+      const tipMatch = line.match(/^Local tip\s*[:]\s*(.+)/i);
+      if (tipMatch && currentDay) { currentDay.tip = tipMatch[1]; i++; continue; }
+      if (!currentDay) html += `<p class="intro-para">${line}</p>`;
+      i++;
+    }
+    if (currentDay) html += renderDay(currentDay);
+    if (dontMissItems.length > 0) {
+      html += `<div class="dont-miss"><h3>✦ Don't Miss</h3><ul>`;
+      dontMissItems.forEach(item => { html += `<li>${item}</li>`; });
+      html += `</ul></div>`;
+    }
+    if (html.trim() === '') html = `<pre class="raw-itinerary">${text}</pre>`;
+    container.innerHTML = html;
+  }
+
+  function renderDay(day) {
+    let html = `<div class="day-block"><div class="day-header"><span class="day-number">Day ${day.number}</span><span class="day-title">${day.title}</span></div>`;
+    day.slots.forEach(slot => { html += `<div class="time-slot"><div class="time-label">${slot.time}</div><div class="time-content">${slot.content}</div></div>`; });
+    if (day.tip) html += `<div class="local-tip"><strong>Local tip:</strong> ${day.tip}</div>`;
+    html += `</div>`;
+    return html;
+  }
+
+  renderItinerary(raw);
+
+  document.getElementById('edit-form').addEventListener('submit', function() {
+    document.getElementById('edit-section').querySelector('form').style.display = 'none';
+    document.getElementById('edit-loading').classList.add('show');
+  });
+
+  // Render packing list
+  const packingData = {{ packing_list | tojson }};
+  function renderPacking(data) {
+    const grid = document.getElementById('packing-grid');
+    if (!data || !grid) return;
+    grid.innerHTML = Object.entries(data).map(([cat, items]) => `
+      <div class="packing-category">
+        <div class="packing-cat-title">${cat}</div>
+        <ul class="packing-items">
+          ${items.map((item, i) => `<li onclick="toggleCheck(this)" id="pack-${cat}-${i}">${item}</li>`).join('')}
+        </ul>
+      </div>
+    `).join('');
+  }
+
+  function toggleCheck(el) { el.classList.toggle('checked'); }
+
+  renderPacking(packingData);
+
+</script>
+</body>
+</html>
